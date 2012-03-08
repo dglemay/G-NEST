@@ -1,0 +1,174 @@
+﻿Installation of G-NEST (gene neighborhood scoring tool)
+========================================================
+(for Ubuntu 11.10)
+
+Decide upon a directory for the software to reside, record the full path name
+of the directory (starting with /).
+
+***  In this document, every reference to MYDIR should be substituted  ***
+***  with the full (absolute) path of your installation directory.     ***
+
+Create that directory and change your current directory to it.
+
+Extract the files from the software archive.
+  tar xf gnest.tar
+
+Install ubuntu packages:
+  sudo apt-get install `cat pkg_list`
+
+Install perl modules:
+  sudo cpan < cpan_list
+Don't worry about warnings related to YAML.  And there might be other harmless
+warnings too.
+
+Compile the C code:
+  make all
+
+Check to see if you have a value defined for the PERLLIB environment variable:
+  echo $PERLLIB   (if the command returns nothing, you haven't set it yet)
+
+Edit the “.bashrc” file in your home directory (all the instructions assume you are using the bash shell).  Add the following lines at the end:
+  export PATH=$PATH:MYDIR
+
+  export PERLLIB=MYDIR	(if PERLLIB doesn't already have a value)
+		<OR>
+  export PERLLIB=$PERLLIB:MYDIR	(if PERLLIB already has a value)
+
+  export GNEST_BIN=MYDIR
+  export GNEST_LIB=MYDIR
+
+Then you'll need to execute your ".bashrc".  The easiest way is to open a new
+terminal shell.  Then remember to "cd" to MYDIR.
+
+You need only set one of PATH or GNEST_BIN.
+If you're always going to run your software out of MYDIR and you set PERLLIB,
+then GNEST_LIB is unnecessary.
+
+Edit the first line of the gnest_functions.sql file from the distribution.
+It should read:
+  SET dynamic_library_path to 'MYDIR:$libdir';
+
+Change to the 'postgres' user.  Create a database user that matches your
+linux user name.  These instructions assume no database password for the
+user corresponding to your linux login user.
+  sudo su postgres	(to assume the role of the 'postgres' user)
+  createuser -s  USER	(where instead of USER, use your linux user)
+  exit			(to stop being the postgres user)
+
+Verify that the database server is up and running:
+  psql -l 
+You should see a list of a few databases, including 'postgres', 'template0'.
+If you get an error instead, you'll have to troubleshoot your postgres
+installation.  In this case, Google's your friend.
+Perhaps a system reboot would help?
+
+Create and initialize database:
+  createdb gnest
+  psql gnest
+
+    gnest=# \i gnest_init.sql
+    (then there's lots of output)
+
+    gnest=# \i gnest_functions.sql
+    (more output)
+
+    gnest=# \q
+
+
+If you want to use a different database name, you must set the GNEST_DB
+environment variable to that other name.
+
+
+=============================================================================
+
+Program to run the analysis:
+
+  gnest.pl  <OPTIONS>  synteny_file ...
+
+  POSIX-style OPTIONS, syntax is "--option <parameter>" are:
+  (* means required)
+
+   *project_taxon_id <integer>
+      (NCBI taxonomy id for the organism of the expression data)
+
+    project  <name>
+      (single token tag to segregate data, alphanumeric starting with a letter)
+
+    chromosomes  <filename>
+      (2 tab-delimited columns, with a header: chromosome, chromosome length;
+       required unless information was preloaded)
+
+   *genes  <filename>
+      (5 tab-delimited columns, with a header:  gene_name, chromosome,
+       strand (+/-), start_pos, end_pos)
+
+    samples  <filename>
+      (3 tab-delimited columns, with a header: filename, biostate, replicate;
+       if omitted, each file is a distinct sample with only 1 replicate)
+
+   *expr_data  <filename>
+      (a grid file, headers are all file names, first column is gene names,
+       cells are expression values)
+
+    filter_on_mas5  <filename>
+      (a grid file, headers are all file names, first column is gene names,
+       cells are expression values; consider genes silent unless PRESENT in
+       all replicates of at least on bio_state)
+
+    filter_min_expr  <float_value>
+      (consider genes silent unless expression level is met in all replicates
+       of at least on bio_state)
+
+    min_win_size & max_win_size   <integer>
+      (range of window sizes for bp window analysis; default=100000-10000000)
+
+    min_gene_count & max_gene_count  <integer>
+      (range of number of genes for by gene counts analysis; default=2-10)
+
+    num_permutations
+      (number of permutations of randomly shuffled genes; default=1000)
+
+    graphs_title  <text>
+      (text to be used in the title of graphs)
+
+    graphics_format <type>
+      (default=pdf, otherwise png, jpeg, png, tiff)
+
+    corr_matrix
+      (boolean; causes correlation matrix to be included in output)
+
+    export_db
+      (boolean; causes SQL statements to recreate database to be output)
+
+    keep_project
+      (boolean; overrides the default behavior of purging data after run)
+
+    no_synteny
+      (boolean; overrides default to use available preloaded synteny info)
+
+    progress
+      (boolean; turns on timestamp tracing of processing)
+
+    galaxy
+      (boolean; use this option when invoked from a galaxy installation)
+
+  ... followed by files with syntenic information for this project taxon
+  (Tab-delimited file, 3 cols (with header): chromosome, start_pos, end_pos)
+  In addition to these files, syntenic information that was preloaded is used
+  unless the 'no_synteny' option is used.
+   
+
+
+Program to upload chromosomes info and/or syntenic information, must be 
+invoked once per project organism:
+
+  gnest_preloads.pl --project_taxon_id <integer>  synteny_file ...
+
+
+=============================================================================
+
+The other file archive (gnest_examples.tar.gz)  contains an example script
+(gnest.sh) to test your installation as well as some example XML files used
+to configure a galaxy installation.  You would need to change the XML files
+for your environment.
+
