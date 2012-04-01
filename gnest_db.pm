@@ -48,8 +48,7 @@ sub db_project_init {
       or die "Error setting client_min_messages\n";
 
   my $so_dir = $ENV{GNEST_LIB} || $ENV{PWD};
-  $dbh->do(sprintf('SET dynamic_library_path TO \'%s:$libdir\'',
-           $ENV{GNEST_LIB} || $ENV{PWD}))
+  $dbh->do(sprintf('SET dynamic_library_path TO \'%s:$libdir\'', $so_dir))
       or die "Error setting dynamic_library_path\n";
 
   if ($project) {

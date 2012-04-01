@@ -175,25 +175,25 @@ $$ LANGUAGE plpgsql;
 
 
 -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION gnh_fill_nh_by_win_size(
+CREATE OR REPLACE FUNCTION gnest_fill_nh_by_win_size(
   p_min_win_size           integer,
   p_max_win_size           integer,
   p_win_size_increment     integer)
   RETURNS void AS $$
 BEGIN
   RAISE EXCEPTION
-      'You must load library for C function "gnh_fill_nh_by_win_size"';
+      'You must load library for C function "gnest_fill_nh_by_win_size"';
 END;
 $$ LANGUAGE plpgsql;
     
 
 -------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION dot_product(  
+CREATE OR REPLACE FUNCTION gnest_dot_product(  
     p_gene_1_expr_ranks      integer[],
     p_gene_2_expr_ranks      integer[])
     RETURNS integer AS $$
 BEGIN
-  RAISE EXCEPTION 'You must load function "dot_product"';
+  RAISE EXCEPTION 'You must load function "gnest_dot_product"';
 END;
 $$ LANGUAGE plpgsql;
 

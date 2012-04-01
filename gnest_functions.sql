@@ -14,7 +14,7 @@
 -- with this program; if not, write to the Free Software Foundation, Inc.,
 -- 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 --#########################################################################
-SET dynamic_library_path TO '????:$libdir';
+SET dynamic_library_path TO '/local/wfmartin/GNEST:$libdir';
 
 ---------------------------------------------------------------------------
 --  Create a new schema with the same name as the project.
@@ -60,7 +60,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION create_tmp_dir() RETURNS varchar AS $$
   use File::Temp('tempdir');
   my $dir = tempdir();
-  system("chmod a+rx $dir");
+  my $cmd = "chmod a+rx $dir";
+  system($cmd)==0  or  elog(ERROR, "Can't execute command: $cmd");
   $dir;
 $$ LANGUAGE plperlu;
 
@@ -73,14 +74,16 @@ CREATE OR REPLACE FUNCTION create_readable_subdir(
     p_subdir_path            varchar)
     RETURNS void AS $$
 
-  system("cd $_[0]; mkdir -m 0755 $_[1]");
+  my $cmd = "cd $_[0]; mkdir -m 0755 $_[1]";
+  system($cmd)==0  or  elog(ERROR, "Can't execute command: $cmd");
 
 $$ LANGUAGE plperlu;
 
 
 -------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION purge_tmp_dir(varchar) RETURNS varchar AS $$
-  system("rm -fr $_[0]");
+  my $cmd = "rm -fr $_[0]";
+  system($cmd)==0  or  elog(ERROR, "Can't execute command: $cmd");
 $$ LANGUAGE plperlu;
 
 
@@ -502,7 +505,9 @@ CREATE OR REPLACE FUNCTION generate_legends(
           nrow=1), col=my.colors, xlab="",ylab="", xaxt="n")
     dev.off()
 
-    system(sprintf('chmod a+r %s', fname))
+    cmd = sprintf('chmod a+r %s', fname);
+    rv = system(cmd)
+    if (rv != 0)  stop(sprintf("Can't execute command: %s", cmd))
   }
 
 $$ LANGUAGE plr;
@@ -587,6 +592,8 @@ CREATE OR REPLACE FUNCTION generate_graphs(
     dev.off()
   }
 
-  system(sprintf('chmod a+r %s/*', output_dir))
+  cmd = sprintf('chmod a+r %s/*', output_dir);
+  rv = system(cmd)
+  if (rv != 0)  stop(sprintf("Can't execute command: %s", cmd))
 
 $$ LANGUAGE plr;

@@ -313,9 +313,6 @@ sub make_zip_file {
   gnest_reports::report_genes_best_score($dbh, $reports_dir, $opts{project},
                                            scalar(@target_taxons)>0 );
 
-  gnest_reports::report_genes_tau($dbh, $reports_dir, $opts{project},
-                                           scalar(@target_taxons)>0 );
-
   gnest_reports::export_db($dbh, $reports_dir, $opts{project}, $schema,
                            $opts{corr_matrix})
       if ($opts{export_db});

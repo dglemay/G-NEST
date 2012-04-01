@@ -403,9 +403,9 @@ sub filter_by_min_expr {
 
   my $query = <<EXPRESSED_INSERT_2;
     CREATE TEMP TABLE expressed_genes AS 
-      SELECT DISTINCT gene_id
+      SELECT DISTINCT gene_name
       FROM raw_expr_data JOIN samples USING(sample_name)
-      GROUP BY gene_id, bio_state;
+      GROUP BY gene_name, bio_state
       HAVING bool_and(expr > $threshold)
 EXPRESSED_INSERT_2
   $dbh->do($query);

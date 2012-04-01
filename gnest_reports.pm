@@ -171,7 +171,7 @@ sub report_genes_best_score {
       WHERE %s by_gene_counts
       GROUP BY gene_id
       )
-    SELECT chromosome, gene_id, gene_name, ${score_type}::numeric(4,2)
+    SELECT chromosome, gene_id, gene_name, ${score_type}::numeric(5,3)
     FROM pass_1 JOIN gene_info USING(gene_id)
     ORDER BY gene_id
 TOP_QUERY_FMT_STR
@@ -200,7 +200,7 @@ WITH pass_1 AS (   -- average the replicates
   SELECT 
     gene_id,
     bio_state,
-    avg(expr)::numeric(4,2) AS avg_expr
+    avg(expr)::numeric(8,2) AS avg_expr
   FROM expr_data JOIN samples USING(sample_id) 
   GROUP BY bio_state, gene_id)
 SELECT   -- compute statistic per gene

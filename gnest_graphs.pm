@@ -50,6 +50,7 @@ CREATE_TMP_GRID
   my $chrom_sth = $dbh->prepare('SELECT * FROM chromosome_info');
   $chrom_sth->execute();
 
+  my $subdirs_created = 0;
   while (my $h_chrom = $chrom_sth->fetchrow_hashref()) {
 
     foreach my $by_gene_counts (0, 1) {  # boolean
@@ -60,7 +61,8 @@ CREATE_TMP_GRID
                 $by_gene_counts ? 'gc' : 'win',
                 $x_axis_bp ? 'bp' : 'gi');
 
-        gnest_db::create_readable_subdir($graphs_dir, $subdir);
+        gnest_db::create_readable_subdir($graphs_dir, $subdir)
+          unless $subdirs_created;
 
         $dbh->do('TRUNCATE TABLE tmp_grid_values');
 
@@ -101,6 +103,7 @@ CREATE_TMP_GRID
             )  or  die "Error: calling graph_nh_stat\n";
       }
     }
+    $subdirs_created = 1;
   }
 
   $dbh->do('DROP TABLE tmp_grid_values')  or
