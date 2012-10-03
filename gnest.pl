@@ -141,7 +141,8 @@ sub parse_parameters {
     },
 
     map ({ tag=>$_, suffix=>'!' },
-     qw(corr_matrix export_db keep_project no_synteny progress galaxy)),
+     qw(corr_matrix allow_overlapping_genes export_db keep_project no_synteny
+        progress galaxy)),
 
     { tag => 'reports_output',    suffix => '=s', },
     { tag => 'graphs_output',     suffix => '=s', },
@@ -209,7 +210,11 @@ sub make_zip_file {
   $rv = system($cmd);
   $rv==0  or  die "Error($rv): $cmd\n";
 
-  rename $tmp_out, $out_file  unless ($tmp_out eq $out_file);
+  unless ($tmp_out eq $out_file) {
+    $cmd = "cp $tmp_out $out_file";
+    $rv = system($cmd);
+    $rv==0  or  die "Error($rv): $cmd\n";
+  }
 }
 
 
@@ -264,7 +269,7 @@ sub make_zip_file {
     progress("Filter on min expression");
   }
 
-  gnest_load::finish_load($dbh);
+  gnest_load::finish_load($dbh, $opts{allow_overlapping_genes});
   progress("Finish load");
 
   gnest_compute::correlation($dbh);
