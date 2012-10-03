@@ -26,7 +26,8 @@ my ($schema, $dbh, $keep_project, @tmp_dirs);
 sub db_connect {
   my $dbname = $ENV{GNEST_DB} || 'gnest';
   my $db_user = $ENV{GNEST_DB_USER} || $ENV{USER};
-  $dbh = DBI->connect("DBI:Pg:database=$dbname", $db_user)
+  my $db_host = $ENV{GNEST_DB_HOST} || 'localhost';
+  $dbh = DBI->connect("DBI:Pg:database=$dbname;host=$db_host", $db_user)
             or die "Can't open gnest database";
 }
 

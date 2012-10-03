@@ -195,7 +195,10 @@ static PGconn *my_connect()
   char *db_user = getenv("GNEST_DB_USER");
   if (!db_user)  db_user = getenv("USER");
 
-  ptr += sprintf(ptr, "dbname=%s user=%s", db_name, db_user);
+  char *db_host = getenv("GNEST_DB_HOST");
+  if (!db_host)  db_host = "localhost";
+
+  ptr += sprintf(ptr, "dbname=%s host=%s user=%s", db_name, db_host, db_user);
   t_conn = PQconnectdb(conn_str);
   if (PQstatus(t_conn) != CONNECTION_OK) {
     fprintf(stderr, "Connection to database failed: %s", PQerrorMessage(conn));
