@@ -1,0 +1,147 @@
+<tool id="gnest" name="gnest" version="1.0">
+  <description> Gene Neighborhood scoring tool</description>
+
+  <command>
+export GNEST_BIN=/local/wfmartin/GNEST/;
+export GNEST_LIB=/local/wfmartin/GNEST/;
+export GNEST_DB=gnest_test;
+export PGPASSFILE=/local/wfmartin/pgpass_test;
+
+perl /local/wfmartin/GNEST/gnest.pl  --galaxy
+   --project_taxon_id
+#if not $for_taxon.sel_project_taxon_id == '0' :
+   $for_taxon.sel_project_taxon_id
+#else :
+   $for_taxon.entered_project_taxon_id
+#end if
+  
+#if $project.value :
+   --project            $project
+#end if
+
+#if $chromosomes :
+   --chromosomes        $chromosomes
+#end if
+
+   --genes              $genes
+
+#if $samples.name != 'None' :
+   --samples            $samples
+#end if
+
+   --expr_data          $expr_data
+
+#if $filter_on_mas5.name != 'None' :
+   --filter_on_mas5     $filter_on_mas5
+#end if
+
+#if $filter_min_expr.value > 0 :
+   --filter_min_expr    $filter_min_expr
+#end if
+
+   --min_win_size       $min_win_size
+   --max_win_size       $max_win_size
+   --min_gene_count     $min_gene_count
+   --max_gene_count     $max_gene_count
+   --num_permutations   $num_permutations
+
+#if $graphs_title.value :
+   --graphs_title       $graphs_title
+#end if
+   --graphics_format    $graphics_format
+
+#if $corr_matrix.value :
+   --corr_matrix 
+#end if
+
+#if $export_db.value :
+  --export_db 
+#end if
+
+  --reports_output      $reports_output
+  --graphs_output       $graphs_output
+  --tracks_gc_output    $tracks_gc_output
+  --tracks_win_output   $tracks_win_output
+
+  #for $i in $synteny_args :
+    ${i.target_taxon_id} ${i.syntenic_info}
+  #end for
+
+  </command>
+
+  <inputs>
+    <conditional name="for_taxon">
+      <param name="sel_project_taxon_id"  type="select" 
+       label="Project Taxon Id">
+          <option value="9606" > Human     (9606) </option>
+          <option value="9598" > Chimp     (9598) </option>
+          <option value="9593" > Gorilla   (9593) </option>
+          <option value="9601" > Orangutan (9601) </option>
+          <option value="9544" > Macaque   (9544) </option>
+          <option value="9483" > Marmoset  (9483) </option>
+          <option value="10090"> Mouse    (10090) </option>
+          <option value="10116"> Rat      (10116) </option>
+          <option value="9913" > Cow       (9913) </option>
+          <option value="9796" > Horse     (9796) </option>
+          <option value="9615" > Dog       (9615) </option>
+          <option value="13616"> Opossum  (13616) </option>
+          <option value="9258" > Platypus  (9258) </option>
+          <option value="0"    > OTHER            </option>
+      </param>
+
+      <when value="0">
+        <param name="entered_project_taxon_id" type="integer" value="0"
+         label="Project Taxon Id"/>
+      </when>
+    </conditional>
+      
+    <param name="project"           type="text" format="tabular"
+                                    optional="true"/>
+
+    <param name="chromosomes"       type="data" format="tabular"
+                                    optional="true"/>
+
+    <param name="genes"             type="data" format="tabular"
+                                    optional="false"/>
+
+    <param name="samples"           type="data" format="tabular"
+                                    optional="true"/>
+
+    <param name="expr_data"         type="data" format="tabular"
+                                    optional="false"/>
+
+    <param name="filter_on_mas5"    type="data" format="tabular"
+                                    optional="true"/>
+
+    <param name="filter_min_expr"   type="float"  value="0" min="0"/>
+    <param name="min_win_size"      type="integer" value="100000"/>
+    <param name="max_win_size"      type="integer" value="10000000"/>
+    <param name="min_gene_count"    type="integer" value="2" min="2" />
+    <param name="max_gene_count"    type="integer" value="10"/>
+    <param name="num_permutations"  type="integer" value="100"/>
+    <param name="graphs_title"      type="text" />
+    <param name="graphics_format"   type="select"  value="pdf">
+      <option value="pdf"  selected="true">pdf</option>
+      <option value="png">png</option>
+      <option value="jpeg">jpeg</option>
+    </param>
+
+    <param name="corr_matrix"       type="boolean" />
+    <param name="export_db"         type="boolean" />
+
+    <repeat name="synteny_args" title="Syntenic Information">
+      <param name="target_taxon_id"  type="integer" value="0"/>
+      <param name="syntenic_info"    type="data"  format="tabular"/>
+    </repeat>
+  </inputs>
+
+  <outputs>
+    <data format="zip" name="reports_output"    label="Misc. Reports"/>
+    <data format="zip" name="graphs_output"     label="Graphs"/>
+    <data format="gz"  name="tracks_gc_output"  label="Tracks by gene count"/>
+    <data format="gz"  name="tracks_win_output" label="Tracks by window size"/>
+
+  </outputs>
+
+</tool>
+
