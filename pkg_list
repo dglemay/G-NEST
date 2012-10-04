@@ -1,0 +1,15 @@
+postgresql
+postgresql-9.1
+postgresql-9.1-plr
+postgresql-client
+postgresql-client-9.1
+postgresql-client-common
+postgresql-common
+postgresql-doc
+postgresql-doc-9.1
+postgresql-plperl-9.1
+postgresql-server-dev-9.1
+libdbi-perl
+libdbd-pg-perl
+libpq-dev
+libpq5
