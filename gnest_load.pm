@@ -22,7 +22,7 @@ use gnest_table_loader;
 
 
 our $chromosome_pattern = qr/"?(chr)?[12]?[\dXY]"?/i;
-my $real_pattern = qr/[-+]?\d+(\.\d+)([Ee][-+]\d+)?/;
+my $real_pattern = qr/[-+]?\d+(\.\d+)?([Ee][-+]\d+)?/;
 my $samples_info_loaded = 0;
 my $genes_filtered = 0;
 
@@ -420,7 +420,7 @@ EXPRESSED_INSERT_2
 #  Those issues are handled here.
 #-------------------------------------------------------------------------
 sub finish_load {
-  my ($dbh) = shift;
+  my ($dbh, $allow_overlapping_genes) = @_;
 
   my $query;
 
@@ -469,56 +469,31 @@ DELETE_GENES_2
   $dbh->do('DROP TABLE chroms_to_delete')  or
       die "Error: DROP chroms_to_delete\n";
 
+  my $with_clause = $allow_overlapping_genes ? '' :
+    'WITH tmp_sel_ids(gene_name) AS (SELECT get_non_overlapping_genes())';
 
-  #-------------------------------------------------------------------------
-  #  Cluster overlapping genes.
-  #  Then put select genes in the final 'gene_info' table.
-  #  For overlapping genes, use the gene with the highest max expression.
-  #
-  #  'gene_id' integer key values are automatically populated.
-  #-------------------------------------------------------------------------
-  $dbh->do('CREATE TEMP TABLE gene_cluster_map AS ' .
-           'SELECT * FROM cluster_overlapping_genes()' );
-  $dbh->do('CREATE INDEX cluster_index ON gene_cluster_map(gene_name)');
+  my $from_clause = $allow_overlapping_genes ? 'FROM raw_gene_info' :
+    'FROM tmp_sel_ids JOIN raw_gene_info USING(gene_name)';
 
   my $query = <<SELECT_GENES;
     INSERT INTO gene_info(chromosome, gene_name, chr_start_pos, gene_pos_index,
                           lower_bound, upper_bound, silent)
-      WITH
-        pass_1 AS (
-          SELECT
-            gene_name,
-            max(expr) AS max_expr
-          FROM raw_expr_data
-          JOIN raw_gene_info USING(gene_name)
-          GROUP BY gene_name
-          ),
-        pass_2 AS (
-          SELECT
-            cluster_start_pos,
-            gene_name,
-            row_number() OVER (PARTITION BY chromosome, cluster_start_pos
-                         ORDER BY max_expr DESC)
-              AS expr_rank
-          FROM pass_1 JOIN gene_cluster_map USING(gene_name)
-          )
-        SELECT
-          chromosome,
-          gene_name,
-          (CASE WHEN strand > 0 THEN start_pos ELSE end_pos END)
-              AS chr_start_pos,
-          rank() OVER (PARTITION BY chromosome ORDER BY cluster_start_pos)
-              AS gene_pos_index,
-          start_pos AS lower_bound,
-          end_pos   AS upper_bound,
-          silent
-        FROM pass_2 JOIN raw_gene_info USING(gene_name)
-        WHERE expr_rank = 1
-        ORDER BY chromosome, cluster_start_pos
+      $with_clause
+      SELECT
+        chromosome,
+        gene_name,
+        start_pos AS chr_start_pos,
+        rank() OVER (PARTITION BY chromosome
+                     ORDER BY LEAST(start_pos, end_pos))
+            AS gene_pos_index,
+        LEAST(start_pos, end_pos) AS lower_bound,
+        GREATEST(start_pos, end_pos) AS upper_bound,
+        silent
+      $from_clause
+      ORDER BY chromosome, lower_bound
 SELECT_GENES
-  $dbh->do($query)  or  die "Error:  (INSERT INTO gene_info)\n";
+  $dbh->do($query);
 
-  $dbh->do('DROP TABLE gene_cluster_map');
 
   #----------------------------------------------------------------------
   $query = <<INSERT_CHROMS;

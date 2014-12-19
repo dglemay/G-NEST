@@ -1,18 +1,18 @@
 
-perl  \
+perl \
    gnest.pl \
     --project_taxon_id    10090                           \
-    --chromosomes         chromosome_info.csv             \
+    --chromosomes         mouse_chroms.csv                \
     --genes               genes.csv                       \
     --samples             samples.csv                     \
     --expr_data           expr_data.csv                   \
     --filter_on_mas5      mas5_calls.txt                  \
     --keep_project --progress  --export_db --corr_matrix  \
-    9598  mouseVchimp_min10K_max100K_mark2.bed  \
-    9913  mouseVcow_min10K_max100K_mark2.bed    \
-    9615  mouseVdog_min10K_max100K_mark2.bed    \
-    9606  mouseVhuman_min10K_max100K_mark2.bed  \
-    10116 mouseVrat_min10K_max100K_mark2.bed 
+    9598  mouse/mouseVchimp.bed  \
+    9913  mouse/mouseVcow.bed    \
+    9615  mouse/mouseVdog.bed    \
+    9606  mouse/mouseVhuman.bed  \
+    10116 mouse/mouseVrat.bed
 
 #  USE DEFAULTS FOR:
 #    --filter_min_expr

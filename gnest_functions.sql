@@ -14,7 +14,7 @@
 -- with this program; if not, write to the Free Software Foundation, Inc.,
 -- 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 --#########################################################################
-SET dynamic_library_path TO '/local/wfmartin/GNEST:$libdir';
+SET dynamic_library_path TO '/local/dglemay:$libdir';
 
 ---------------------------------------------------------------------------
 --  Create a new schema with the same name as the project.
@@ -244,66 +244,108 @@ END;
 $$ LANGUAGE plpgsql;
 
 
--------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION cluster_overlapping_genes()
-    RETURNS SETOF gene_cluster_map AS $$
+--------------------------------------------------------------------------
+--  Given a cluster of genes that overlap each other (including transitively),
+--  Return the highest expressed non-overlapping gene(s).
+--
+--  If A overlaps B overlaps C (but A doesn't overlap C), then if A has the
+--  highest expression, both A and C should be returned.
+--------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION select_genes_from_cluster(
+    p_genes                  varchar[])
+    RETURNS SETOF varchar
+    LANGUAGE plpgsql AS $$
 DECLARE
-  v_rec                      RECORD;  -- (raw_gene_info)
-  v_chromosome               varchar;
-  v_cluster_start_pos        integer;
-  --v_out                      gene_cluster_map;
+  v_gene_name                varchar;
+  v_start_pos                integer;
+  v_end_pos                  integer;
 BEGIN
-  CREATE TEMP TABLE tmp_clusters (
-    chromosome               varchar,
-    cluster_start_pos        integer,
-    cluster_end_pos          integer,
-    gene_names               varchar[]
-  );
-  CREATE INDEX tc_index ON tmp_clusters(chromosome, cluster_start_pos);
+  TRUNCATE tmp_gene_clust;
 
-  FOR v_chromosome IN SELECT chromosome FROM raw_chrom_lengths  LOOP
-    TRUNCATE tmp_clusters;
+  INSERT INTO tmp_gene_clust(gene_name, start_pos, end_pos, max_expr)
+    WITH tmp_ids(gene_name) AS (SELECT unnest(p_genes))
+    SELECT
+      gene_name,
+      start_pos,
+      end_pos,
+      max(expr) AS max_expr
+    FROM tmp_ids
+    JOIN raw_gene_info g USING(gene_name)
+    LEFT OUTER JOIN raw_expr_data e USING(gene_name)
+    GROUP BY gene_name, start_pos, end_pos
+    ORDER BY max_expr DESC;
 
-    FOR v_rec IN
-      SELECT * FROM raw_gene_info
-      WHERE chromosome = v_chromosome 
-      ORDER BY end_pos - start_pos DESC
-    LOOP
-      SELECT cluster_start_pos INTO v_cluster_start_pos
-      FROM tmp_clusters
-      WHERE v_rec.start_pos BETWEEN cluster_start_pos AND cluster_end_pos  OR
-            v_rec.end_pos   BETWEEN cluster_start_pos AND cluster_end_pos
-      LIMIT 1;
-  
-      IF FOUND THEN
-        UPDATE tmp_clusters
-          SET gene_names        = gene_names || v_rec.gene_name,
-              cluster_start_pos = LEAST(cluster_start_pos, v_rec.start_pos),
-              cluster_end_pos   = GREATEST(cluster_end_pos, v_rec.end_pos)
-        WHERE chromosome = v_chromosome  AND
-              cluster_start_pos = v_cluster_start_pos;
-      ELSE
-        INSERT INTO tmp_clusters(chromosome, cluster_start_pos, cluster_end_pos,
-                                 gene_names)
-        VALUES(v_chromosome, v_rec.start_pos, v_rec.end_pos,
-               ARRAY[v_rec.gene_name]);
-      END IF;
-    END LOOP;  -- genes
-  
-    --INSERT INTO gene_cluster_map(chromosome, cluster_start_pos, gene_name)
-    RETURN QUERY 
-      SELECT 
-        chromosome,
-        cluster_start_pos,
-        unnest(gene_names) AS gene_name
-      FROM tmp_clusters;
+  LOOP
+    SELECT gene_name, start_pos, end_pos
+    INTO v_gene_name, v_start_pos, v_end_pos
+    FROM tmp_gene_clust
+    ORDER BY max_expr DESC LIMIT 1;
 
-  END LOOP;    -- chromosomes
+    EXIT WHEN NOT FOUND;
 
-  DROP TABLE tmp_clusters;
+    RETURN NEXT v_gene_name;
+
+    DELETE FROM tmp_gene_clust
+    WHERE GREATEST(start_pos, v_start_pos) <= LEAST(v_end_pos, end_pos);
+  END LOOP;
 
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+
+--------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION get_non_overlapping_genes()
+    RETURNS SETOF varchar
+    LANGUAGE plpgsql AS $$
+DECLARE
+  v_genes                    varchar[];
+  v_clust_end_pos            integer;
+  v_chromosome               varchar;
+  v_rec                      RECORD;
+BEGIN
+  CREATE TEMP TABLE tmp_gene_clust(
+    gene_name                varchar,
+    start_pos                integer,
+    end_pos                  integer,
+    max_expr                 real
+  );
+
+  FOR v_chromosome IN SELECT chromosome FROM raw_chrom_lengths  LOOP
+    v_genes := NULL;
+    FOR v_rec IN
+        SELECT * FROM raw_gene_info
+          WHERE chromosome = v_chromosome
+          ORDER BY start_pos, end_pos DESC
+    LOOP
+      ----------------------------------------------------------------
+      --  Past the current cluster?  Handle it and start a new one.
+      ----------------------------------------------------------------
+      IF v_rec.start_pos > v_clust_end_pos THEN
+        IF array_length(v_genes,1) = 1 THEN
+          RETURN NEXT v_genes[1];
+        ELSE
+          RETURN QUERY SELECT select_genes_from_cluster(v_genes);
+        END IF;
+
+        v_genes := NULL;
+        v_clust_end_pos := 0;
+      END IF;
+
+      v_genes := v_genes || v_rec.gene_name;
+      v_clust_end_pos := GREATEST(v_clust_end_pos, v_rec.end_pos);
+    END LOOP;  -- end gene
+
+    IF array_length(v_genes,1) = 1 THEN
+      RETURN NEXT v_genes[1];
+    ELSE
+      RETURN QUERY SELECT select_genes_from_cluster(v_genes);
+    END IF;
+
+  END LOOP; -- end chromosome
+
+  DROP TABLE tmp_gene_clust;
+END;
+$$;
 
 
 -------------------------------------------------------------------------
